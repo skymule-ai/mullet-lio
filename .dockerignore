@@ -1,0 +1,11 @@
+.git
+.github
+.env
+
+ws
+build
+install
+log
+
+**/__pycache__
+*.py[cod]

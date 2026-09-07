@@ -1,0 +1,19 @@
+.env
+
+# Runtime development workspace. Keep only its directory scaffold here;
+# develop upstream LIO source in its own repository under ws/src.
+ws/*
+!ws/src/
+ws/src/*
+!ws/src/.gitkeep
+
+# ROS 2/colcon outputs
+build/
+install/
+log/
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+*~

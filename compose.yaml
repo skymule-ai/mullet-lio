@@ -1,0 +1,42 @@
+name: mullet_ros_lio
+
+x-ros-environment: &ros-environment
+  ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+  RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+  NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+  NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
+
+services:
+  livox:
+    profiles: [livox, lio]
+    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-ros-livox:local}
+    network_mode: host
+    ipc: host
+    runtime: nvidia
+    environment: *ros-environment
+    volumes:
+      - ${LIVOX_CONFIG_FILE:-../mullet_ros_drivers/config/livox/MID360s_config.json}:/config/MID360s_config.json:ro
+
+  lio:
+    profiles: [lio]
+    build:
+      context: .
+      dockerfile: images/lio/Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-ghcr.io/skymule-ai/mullet-ros2-base:v0.4.0}
+    image: ${LIO_IMAGE:-ghcr.io/skymule-ai/mullet-ros-lio:local}
+    network_mode: host
+    ipc: host
+    runtime: nvidia
+    depends_on:
+      livox:
+        condition: service_started
+    environment: *ros-environment
+    working_dir: /ws
+    volumes:
+      - ./ws:/ws:rw
+      - ./config/lio:/config:ro
+    command:
+      - bash
+      - -lc
+      - ${LIO_COMMAND:-exec sleep infinity}
