@@ -1,4 +1,4 @@
-# mullet_ros_lio
+# mullet-lio
 
 Development and container scaffolding for ROS 2 LiDAR-inertial odometry on the
 Mullet Jetson platform.
@@ -42,7 +42,7 @@ cp .env.example .env
 ```
 
 `LIVOX_CONFIG_FILE` defaults to the configuration in the sibling
-`mullet_ros_drivers` checkout. Set it in `.env` to a different absolute or
+`mullet-drivers` checkout. Set it in `.env` to a different absolute or
 relative host path when using a robot-specific configuration. The file is
 mounted inside the Livox container as `/config/MID360s_config.json`; it is not
 copied into this repository.
@@ -56,7 +56,7 @@ docker compose ps
 ```
 
 The default `lio` profile starts both the Livox and LIO services. The Livox
-image defaults to the locally built `ghcr.io/skymule-ai/mullet-ros-livox:local`
+image defaults to the locally built `ghcr.io/skymule-ai/mullet-drivers-livox:local`
 image and can be overridden through `LIVOX_IMAGE`.
 
 ## Build a LIO package interactively
