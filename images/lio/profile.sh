@@ -1,6 +1,5 @@
 # shellcheck shell=bash
-source /opt/ros/humble/setup.bash
-source /opt/ros2_base_ws/install/setup.bash
+source /usr/local/share/mullet-ros/setup.bash  # ROS 2 Jazzy + the base workspace (px4_msgs)
 
 if [[ -f /ws/install/setup.bash ]]; then
   source /ws/install/setup.bash
