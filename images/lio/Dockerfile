@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/skymule-ai/mullet-ros2-base:v0.5.0
+ARG BASE_IMAGE=ghcr.io/skymule-ai/mullet-base:v0.5.1
 FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

@@ -17,7 +17,7 @@ The Livox driver and LIO implementation run as separate containers:
 MID-360S -> Livox container -> ROS 2 point-cloud/IMU topics -> LIO container
 ```
 
-The LIO image inherits `mullet-ros2-base`, not the Livox image. This assumes the
+The LIO image inherits `mullet-base`, not the Livox image. This assumes the
 selected implementation consumes standard ROS messages such as
 `sensor_msgs/msg/PointCloud2` and `sensor_msgs/msg/Imu`. If it requires
 `livox_ros_driver2/msg/CustomMsg`, its build will also need that interface
