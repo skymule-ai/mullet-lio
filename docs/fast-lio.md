@@ -117,9 +117,10 @@ only if `docker stats` shows FAST-LIO falling behind the 10 Hz scans.
   `blind` only if the frame and props are out of the field of view.
 - **Moving at start.** Gravity and the biases are wrong, and the estimate diverges in seconds.
   Restart the container with the drone still.
-- **Unsynced time.** Without PTP, the LiDAR stamps with its own clock. FAST-LIO still works (LiDAR
-  and IMU share that clock), but its odometry stamps are not ROS time, so the bridge's
-  `timestamp_sample` and any comparison with other topics are wrong.
+- **Unsynced time.** Without PTP, the driver stamps every LiDAR and IMU packet with the Orin's
+  clock on arrival: ROS time, but a few ms late and jittered, LiDAR and IMU independently. The
+  deskew and the IMU-to-scan alignment absorb that jitter, and the odometry stamps run late by the
+  link latency (EKF2_EV_DELAY must absorb it). Run `livox-ptp`.
 - **Props in the cloud.** The MID-360's field of view reaches down to −7°. If propeller or frame
   points appear in `cloud_registered_body`, they move with the drone, and the map is corrupted.
   Raise `blind`, or mount the LiDAR higher.

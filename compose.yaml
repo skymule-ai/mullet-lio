@@ -21,7 +21,7 @@ services:
     volumes:
       - ./config/livox:/config:ro
 
-  # PTP master on the LiDAR's interface: the MID-360 stamps with its own clock until synced.
+  # PTP master on the LiDAR's interface: synced, stamps are measurement times, not arrival times.
   livox-ptp:
     profiles: [livox, fast-lio]
     image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
