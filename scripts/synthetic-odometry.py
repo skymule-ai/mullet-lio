@@ -1,7 +1,12 @@
 """FAST-LIO odometry check without a sensor: a synthetic MID-360 (CustomMsg, IMU in g) in a box room,
 replayed in real time. Still 0-2 s, accelerates in world x 2-3 s, then 0.5 m/s in world x while
-yawing 0.3 rad/s. Checks the pose, the body-frame twist and the covariances that
-images/fast-lio/patches/odometry.patch fills. Run by scripts/smoke-fast-lio.sh."""
+yawing 0.3 rad/s. The MID-360 can be mounted tilted (roll, pitch in degrees on the command line).
+Checks what images/fast-lio/patches/ change: the world is gravity-aligned (no height drift, body
+"up" right) whatever the mount; the twist is in the body frame; the covariances are filled.
+Run by scripts/smoke-fast-lio.sh, level and tilted.
+
+    synthetic-odometry.py [roll_deg pitch_deg]"""
+import sys
 import time
 
 import numpy as np
@@ -37,6 +42,14 @@ def rot(y):
     return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
 
+def rot_xy(roll, pitch):
+    cr, sr, cp, sp = np.cos(roll), np.sin(roll), np.cos(pitch), np.sin(pitch)
+    return np.array([[cp, 0, sp], [0, 1, 0], [-sp, 0, cp]]) @ np.array([[1, 0, 0], [0, cr, -sr], [0, sr, cr]])
+
+
+R_M = rot_xy(*np.radians([float(a) for a in sys.argv[1:3]] or [0.0, 0.0]))  # body in a level, yawed frame
+
+
 def stamp(t_abs):
     ns = int(round(t_abs * 1e9))
     return Time(sec=ns // 1_000_000_000, nanosec=ns % 1_000_000_000), ns
@@ -59,13 +72,14 @@ def main():
         while k_imu * 0.005 <= t:
             ti = k_imu * 0.005
             if ti >= 0:
-                R = rot(yaw(ti))
+                R = rot(yaw(ti)) @ R_M
                 f = R.T @ (acc_w(ti) + [0, 0, G]) / G
+                w = R_M.T @ [0, 0, 0.3 if ti > 3 else 0.0]
                 m = Imu()
                 m.header.stamp, _ = stamp(t0 + ti)
                 m.header.frame_id = 'livox_frame'
                 m.linear_acceleration.x, m.linear_acceleration.y, m.linear_acceleration.z = f
-                m.angular_velocity.z = 0.3 if ti > 3 else 0.0
+                m.angular_velocity.x, m.angular_velocity.y, m.angular_velocity.z = w
                 pub_imu.publish(m)
             k_imu += 1
         if (k_scan + 1) * 0.1 <= t:
@@ -84,8 +98,8 @@ def main():
             ps = np.array([pos(x) for x in tp])
             c, sn = np.cos(ys), np.sin(ys)
             rotz = lambda v: np.stack([c * v[:, 0] - sn * v[:, 1], sn * v[:, 0] + c * v[:, 1], v[:, 2]], 1)
-            o = ps + rotz(np.tile(T_LI, (n, 1)))
-            d = rotz(d_l)
+            o = ps + rotz(np.tile(R_M @ T_LI, (n, 1)))
+            d = rotz(d_l @ R_M.T)
             with np.errstate(divide='ignore', invalid='ignore'):
                 tt = np.where(d > 0, (HI - o) / d, (LO - o) / d)
             tt[~np.isfinite(tt) | (tt <= 0)] = np.inf
@@ -107,18 +121,26 @@ def main():
     p = m.pose.pose.position
     v = m.twist.twist.linear
     w = m.twist.twist.angular
-    v_exp = rot(yaw(t)).T @ [0.5, 0, 0]
+    R_true = rot(yaw(t)) @ R_M
+    v_exp = R_true.T @ [0.5, 0, 0]
+    w_exp = R_M.T @ [0, 0, 0.3]
+    q = m.pose.pose.orientation
+    x, y, z, qw = q.x, q.y, q.z, q.w
+    up_fl = np.array([2 * (x * z - qw * y), 2 * (y * z + qw * x), 1 - 2 * (x * x + y * y)])  # R^T e_z
     pc = np.array(m.pose.covariance).reshape(6, 6)
     tc = np.array(m.twist.covariance).reshape(6, 6)
     print(f'{len(odoms)} odometry msgs; last at t={t:.2f}')
-    print(f'pos      {p.x:.3f} {p.y:.3f} {p.z:.3f}   expected {pos(t)}')
+    print(f'pos      {p.x:.3f} {p.y:.3f} {p.z:.3f}   expected horizontal {pos(t)[0]:.3f}, z 0')
+    print(f'up_body  {np.round(up_fl, 3)}   expected {np.round(R_true.T[:, 2], 3)}')
     print(f'v_body   {v.x:.3f} {v.y:.3f} {v.z:.3f}   expected {np.round(v_exp, 3)}')
-    print(f'w_body   {w.x:.3f} {w.y:.3f} {w.z:.3f}   expected 0 0 0.3')
+    print(f'w_body   {w.x:.3f} {w.y:.3f} {w.z:.3f}   expected {np.round(w_exp, 3)}')
     print('pose cov diag', np.diag(pc))
     print('twist cov diag', np.diag(tc))
-    assert np.linalg.norm([p.x - pos(t)[0], p.y, p.z]) < 0.2
+    # The world's heading is the IMU's at start-up, so compare what does not depend on it.
+    assert abs(np.hypot(p.x, p.y) - pos(t)[0]) < 0.2 and abs(p.z) < 0.1
+    assert np.linalg.norm(up_fl - R_true.T[:, 2]) < 0.02
     assert np.linalg.norm(np.array([v.x, v.y, v.z]) - v_exp) < 0.1
-    assert abs(w.z - 0.3) < 0.02
+    assert np.linalg.norm(np.array([w.x, w.y, w.z]) - w_exp) < 0.02
     assert (np.diag(pc) > 0).all() and (np.diag(tc) > 0).all()
     print('SYNTHETIC CHECK PASSED')
 

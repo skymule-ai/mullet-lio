@@ -77,10 +77,11 @@ The covariance `P` keeps this order. The odometry patch reads position and rotat
 The first ~20 IMU samples set the gravity direction, the gyro bias and the accelerometer scale. The
 MID-360 IMU reports in g; FAST-LIO rescales by the mean norm. **Keep the drone still at start.**
 
-The world frame `camera_init` is the IMU frame at that moment. It is **not gravity-aligned**: if
-the MID-360 is tilted at start, the world z axis is tilted by the same angle. px4_ev_bridge assumes
-z-up. On a level drone with a level-mounted LiDAR the error is the mounting tilt. Measure it once
-(the `grav` estimate after start-up); if it is over about 1°, gravity-align the output.
+The world frame `camera_init` is **gravity-aligned** (`patches/gravity-align.patch`): z is up, and
+the heading is the IMU's at start-up. Upstream used the IMU frame at start-up as the world, so a
+tilted mount or a sloped take-off spot tilted the world's z axis, and horizontal flight leaked into
+height. In the synthetic check with a 20° mount, that was 1.9 m over 5.7 m. px4_ev_bridge assumes z-up.
+mullet1's MID-360 sits about 1.6° from level (measured 2026-10-19).
 
 ## What it publishes
 
@@ -104,6 +105,7 @@ published the previous scan's covariance with position and rotation swapped, and
 | `map_en` | `true` | `false` | publishes the whole map every scan: unbounded bandwidth on the Orin |
 | `pcd_save_en` | `true` | `false` | keeps every scan in RAM until shutdown |
 | CMake standard | C++14 | C++17 | Jazzy's rclcpp |
+| initial attitude | identity (world = IMU at start) | from gravity (`gravity-align.patch`) | world z up for the bridge, whatever the mount |
 
 On aarch64, upstream builds without its OpenMP nearest-neighbour search (`MP_PROC_NUM=1`). Enable it
 only if `docker stats` shows FAST-LIO falling behind the 10 Hz scans.

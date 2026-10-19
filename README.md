@@ -28,7 +28,7 @@ per-point times it needs to deskew a scan. The message package is copied from th
 ## Layout
 
 ```text
-images/fast-lio/          FAST-LIO2 source build, odometry patch, runtime entrypoint
+images/fast-lio/          FAST-LIO2 source build, patches, runtime entrypoint
 config/fast-lio/          Example runtime configuration (mid360.yaml)
 config/livox/             Example MID-360 driver configuration
 docs/fast-lio.md          How FAST-LIO2 works, our settings, failure modes
@@ -55,12 +55,15 @@ The image builds upstream `hku-mars/FAST_LIO` (`ROS2` branch), pinned by build a
 ```dotenv
 FAST_LIO_REPOSITORY=https://github.com/hku-mars/FAST_LIO.git
 FAST_LIO_REF=a4743b095409588842a5b30ddfa27e29d2f99164
-LIVOX_IMAGE=ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8
+LIVOX_IMAGE=ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c
 ```
 
-Two changes are applied to upstream at build time:
+Three changes are applied to upstream at build time:
 
 - C++14 → C++17, which Jazzy's `rclcpp` requires.
+- [`images/fast-lio/patches/gravity-align.patch`](images/fast-lio/patches/gravity-align.patch). The
+  world frame starts gravity-aligned (z up, heading = the IMU's at start-up) instead of being the
+  IMU frame at start-up, so a tilted mount does not tilt the world.
 - [`images/fast-lio/patches/odometry.patch`](images/fast-lio/patches/odometry.patch). It makes
   `/uav0/fast_lio/odometry` standard odometry, which is what mullet-localization's bridge expects:
   the covariance is filled before publishing and in ROS order, and the twist is set in the body
@@ -68,8 +71,9 @@ Two changes are applied to upstream at build time:
 
 The smoke test checks package discovery, the executable, the Livox message type, the mounted
 configuration, and that FAST-LIO stays alive waiting for sensor topics. It then replays a synthetic
-MID-360 in a box room (`scripts/synthetic-odometry.py`, ~16 s in real time) and checks the pose, the
-body-frame twist and the covariances. That validates the patch, not the odometry quality on real
+MID-360 in a box room (`scripts/synthetic-odometry.py`, ~16 s in real time), level and then mounted
+at 5° roll / 20° pitch. It checks that there is no height drift, the body's "up", the body-frame twist
+and the covariances. That validates the patches, not the odometry quality on real
 data.
 
 ## Run
@@ -85,7 +89,7 @@ first IMU samples.
 
 | Topic | Type | What |
 | --- | --- | --- |
-| `/uav0/fast_lio/odometry` | `nav_msgs/Odometry` | IMU pose in `camera_init` (the IMU frame at start), 10 Hz |
+| `/uav0/fast_lio/odometry` | `nav_msgs/Odometry` | IMU pose in `camera_init` (z up, heading of the IMU at start), 10 Hz |
 | `/uav0/fast_lio/path` | `nav_msgs/Path` | trajectory, for viewing |
 | `/uav0/fast_lio/cloud_registered_body` | `sensor_msgs/PointCloud2` | deskewed scan, IMU frame |
 | `/uav0/fast_lio/cloud_registered` | `sensor_msgs/PointCloud2` | deskewed scan, world frame |

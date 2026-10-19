@@ -24,28 +24,34 @@ docker run --rm \
   "${image}" \
   test -r /config/mid360.yaml
 
+# A synthetic MID-360, level and then tilted (roll 5, pitch 20 deg), each against a fresh FAST-LIO.
 # Own ROS domain: the check publishes /livox/* and must not meet a real driver on the network.
-docker run --detach \
-  --name "${container_name}" \
-  --network host \
-  --env ROS_DOMAIN_ID=77 --env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
-  --volume "${config_dir}:/config:ro" \
-  "${image}" >/dev/null
+for tilt in "0 0" "5 20"; do
+  docker run --detach \
+    --name "${container_name}" \
+    --network host \
+    --env ROS_DOMAIN_ID=77 --env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+    --volume "${config_dir}:/config:ro" \
+    "${image}" >/dev/null
 
-sleep 5
+  sleep 5
 
-if [[ "$(docker inspect --format '{{.State.Running}}' "${container_name}")" != "true" ]]; then
-  docker logs "${container_name}" >&2
-  echo "FAST-LIO exited instead of waiting for sensor topics." >&2
-  exit 1
-fi
+  if [[ "$(docker inspect --format '{{.State.Running}}' "${container_name}")" != "true" ]]; then
+    docker logs "${container_name}" >&2
+    echo "FAST-LIO exited instead of waiting for sensor topics." >&2
+    exit 1
+  fi
 
-docker run --rm \
-  --network host \
-  --env ROS_DOMAIN_ID=77 --env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
-  --volume "${repo_root}/scripts:/scripts:ro" \
-  "${image}" \
-  python3 /scripts/synthetic-odometry.py \
-  || { docker logs "${container_name}" >&2; exit 1; }
+  echo "Synthetic MID-360, roll/pitch ${tilt} deg:"
+  # shellcheck disable=SC2086
+  docker run --rm \
+    --network host \
+    --env ROS_DOMAIN_ID=77 --env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+    --volume "${repo_root}/scripts:/scripts:ro" \
+    "${image}" \
+    python3 /scripts/synthetic-odometry.py ${tilt} \
+    || { docker logs "${container_name}" >&2; exit 1; }
+  docker rm --force "${container_name}" >/dev/null
+done
 
 echo "FAST-LIO image smoke test passed."

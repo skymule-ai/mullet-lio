@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=ghcr.io/skymule-ai/mullet-base:v0.5.1
 # livox_ros_driver2 (CustomMsg) comes from the driver image, so the message type and its Jazzy type
 # hash match the driver exactly. Use a driver image built on the same BASE_IMAGE.
-ARG LIVOX_IMAGE=ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8
+ARG LIVOX_IMAGE=ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c
 FROM ${LIVOX_IMAGE} AS livox
 
 FROM ${BASE_IMAGE}

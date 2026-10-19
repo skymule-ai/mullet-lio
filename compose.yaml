@@ -13,7 +13,7 @@ services:
   # /livox/lidar (CustomMsg), /livox/imu
   livox:
     profiles: [livox, fast-lio]
-    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
+    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c}
     network_mode: host
     ipc: host
     runtime: nvidia
@@ -21,12 +21,12 @@ services:
     volumes:
       - ./config/livox:/config:ro
 
-  # PTP master on the LiDAR's interface: synced, stamps are measurement times, not arrival times.
+  # gPTP master on the LiDAR's interface: synced, stamps are measurement times, not arrival times.
   livox-ptp:
     profiles: [livox, fast-lio]
-    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
+    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c}
     network_mode: host
-    command: [ptp4l, -i, "${LIVOX_IFACE:?set LIVOX_IFACE in .env}", -S, -m, --serverOnly, "1"]
+    command: [ptp4l, -i, "${LIVOX_IFACE:?set LIVOX_IFACE in .env}", -S, -m, -f, /etc/linuxptp/livox-gptp.cfg]
 
   fast-lio:  # /uav0/fast_lio/odometry
     profiles: [fast-lio]
@@ -35,7 +35,7 @@ services:
       dockerfile: images/fast-lio/Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE:-ghcr.io/skymule-ai/mullet-base:v0.5.1}
-        LIVOX_IMAGE: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
+        LIVOX_IMAGE: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c}
         FAST_LIO_REPOSITORY: ${FAST_LIO_REPOSITORY:-https://github.com/hku-mars/FAST_LIO.git}
         FAST_LIO_REF: ${FAST_LIO_REF:-a4743b095409588842a5b30ddfa27e29d2f99164}
     image: ${FAST_LIO_IMAGE:-ghcr.io/skymule-ai/mullet-lio-fast-lio:main}
