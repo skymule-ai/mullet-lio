@@ -1,0 +1,29 @@
+diff --git a/src/laserMapping.cpp b/src/laserMapping.cpp
+index e5d9950..8de1845 100644
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -926,7 +926,9 @@ public:
+         {
+             sub_pcl_pc_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, rclcpp::SensorDataQoS(), standard_pcl_cbk);
+         }
+-        sub_imu_ = this->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 10, imu_cbk);
++        // mullet: 10 s of IMU, not 10 samples (50 ms). The single-threaded executor runs imu_cbk only
++        // between scans, so a slow scan (the first map, a busy Orin) otherwise drops IMU samples.
++        sub_imu_ = this->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 2000, imu_cbk);
+         pubLaserCloudFull_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered", 20);
+         pubLaserCloudFull_body_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered_body", 20);
+         pubLaserCloudEffect_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_effected", 20);
+@@ -959,6 +961,13 @@ private:
+     {
+         if(sync_packages(Measures))
+         {
++            // mullet: a scan with no IMU sample in its window (IMU dropped or late) cannot be
++            // deskewed or propagated. Upstream went on with the previous scan's points; skip it.
++            if (Measures.imu.empty())
++            {
++                RCLCPP_WARN(this->get_logger(), "No IMU sample in this scan, skip it");
++                return;
++            }
+             if (flg_first_scan)
+             {
+                 first_lidar_time = Measures.lidar_beg_time;

@@ -2,7 +2,9 @@
 replayed in real time. Still 0-2 s, accelerates in world x 2-3 s, then 0.5 m/s in world x while
 yawing 0.3 rad/s. The MID-360 can be mounted tilted (roll, pitch in degrees on the command line).
 Checks what images/fast-lio/patches/ change: the world is gravity-aligned (no height drift, body
-"up" right) whatever the mount; the twist is in the body frame; the covariances are filled.
+"up" right) whatever the mount; the twist is in the body frame; the covariances are filled; a
+0.3 s gap in the IMU (6.0-6.3 s, as when FAST-LIO falls behind and drops IMU samples) leaves scans
+without IMU samples, which must be skipped, not processed with stale points (or crash).
 Run by scripts/smoke-fast-lio.sh, level and tilted.
 
     synthetic-odometry.py [roll_deg pitch_deg]"""
@@ -71,7 +73,7 @@ def main():
         if t > DUR: break
         while k_imu * 0.005 <= t:
             ti = k_imu * 0.005
-            if ti >= 0:
+            if ti >= 0 and not 6.0 <= ti < 6.3:
                 R = rot(yaw(ti)) @ R_M
                 f = R.T @ (acc_w(ti) + [0, 0, G]) / G
                 w = R_M.T @ [0, 0, 0.3 if ti > 3 else 0.0]
@@ -136,6 +138,7 @@ def main():
     print(f'w_body   {w.x:.3f} {w.y:.3f} {w.z:.3f}   expected {np.round(w_exp, 3)}')
     print('pose cov diag', np.diag(pc))
     print('twist cov diag', np.diag(tc))
+    assert t > DUR - 1.0, f'FAST-LIO stopped publishing at t={t:.2f} s (crashed?)'
     # The world's heading is the IMU's at start-up, so compare what does not depend on it.
     assert abs(np.hypot(p.x, p.y) - pos(t)[0]) < 0.2 and abs(p.z) < 0.1
     assert np.linalg.norm(up_fl - R_true.T[:, 2]) < 0.02

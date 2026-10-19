@@ -58,12 +58,16 @@ FAST_LIO_REF=a4743b095409588842a5b30ddfa27e29d2f99164
 LIVOX_IMAGE=ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c
 ```
 
-Three changes are applied to upstream at build time:
+Four changes are applied to upstream at build time:
 
 - C++14 → C++17, which Jazzy's `rclcpp` requires.
 - [`images/fast-lio/patches/gravity-align.patch`](images/fast-lio/patches/gravity-align.patch). The
   world frame starts gravity-aligned (z up, heading = the IMU's at start-up) instead of being the
   IMU frame at start-up, so a tilted mount does not tilt the world.
+- [`images/fast-lio/patches/imu-gaps.patch`](images/fast-lio/patches/imu-gaps.patch). Upstream's IMU
+  queue held 10 samples (50 ms), so a slow scan dropped IMU data. A scan left with no IMU sample was
+  then processed with the previous scan's points. Now the queue holds 10 s, and such a scan is
+  skipped with a warning. On mullet1 this was a segfault right after the first map.
 - [`images/fast-lio/patches/odometry.patch`](images/fast-lio/patches/odometry.patch). It makes
   `/uav0/fast_lio/odometry` standard odometry, which is what mullet-localization's bridge expects:
   the covariance is filled before publishing and in ROS order, and the twist is set in the body
@@ -72,8 +76,8 @@ Three changes are applied to upstream at build time:
 The smoke test checks package discovery, the executable, the Livox message type, the mounted
 configuration, and that FAST-LIO stays alive waiting for sensor topics. It then replays a synthetic
 MID-360 in a box room (`scripts/synthetic-odometry.py`, ~16 s in real time), level and then mounted
-at 5° roll / 20° pitch. It checks that there is no height drift, the body's "up", the body-frame twist
-and the covariances. That validates the patches, not the odometry quality on real
+at 5° roll / 20° pitch, each with a 0.3 s gap in the IMU. It checks that FAST-LIO keeps publishing to
+the end, that there is no height drift, the body's "up", the body-frame twist and the covariances. That validates the patches, not the odometry quality on real
 data.
 
 ## Run
