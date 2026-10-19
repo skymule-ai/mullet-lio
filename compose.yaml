@@ -10,24 +10,35 @@ x-ros-environment: &ros-environment
   NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
 
 services:
+  # /livox/lidar (CustomMsg), /livox/imu
   livox:
-    profiles: [livox, lio]
-    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:local}
+    profiles: [livox, fast-lio]
+    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
     network_mode: host
     ipc: host
     runtime: nvidia
     environment: *ros-environment
     volumes:
-      - ${LIVOX_CONFIG_FILE:-../mullet-drivers/config/livox/MID360s_config.json}:/config/MID360s_config.json:ro
+      - ./config/livox:/config:ro
 
-  lio:
-    profiles: [lio]
+  # PTP master on the LiDAR's interface: the MID-360 stamps with its own clock until synced.
+  livox-ptp:
+    profiles: [livox, fast-lio]
+    image: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
+    network_mode: host
+    command: [ptp4l, -i, "${LIVOX_IFACE:?set LIVOX_IFACE in .env}", -S, -m, --serverOnly, "1"]
+
+  fast-lio:  # /uav0/fast_lio/odometry
+    profiles: [fast-lio]
     build:
       context: .
-      dockerfile: images/lio/Dockerfile
+      dockerfile: images/fast-lio/Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE:-ghcr.io/skymule-ai/mullet-base:v0.5.1}
-    image: ${LIO_IMAGE:-ghcr.io/skymule-ai/mullet-lio:local}
+        LIVOX_IMAGE: ${LIVOX_IMAGE:-ghcr.io/skymule-ai/mullet-drivers-livox:sha-29ab1e8}
+        FAST_LIO_REPOSITORY: ${FAST_LIO_REPOSITORY:-https://github.com/hku-mars/FAST_LIO.git}
+        FAST_LIO_REF: ${FAST_LIO_REF:-a4743b095409588842a5b30ddfa27e29d2f99164}
+    image: ${FAST_LIO_IMAGE:-ghcr.io/skymule-ai/mullet-lio-fast-lio:main}
     network_mode: host
     ipc: host
     runtime: nvidia
@@ -35,11 +46,5 @@ services:
       livox:
         condition: service_started
     environment: *ros-environment
-    working_dir: /ws
     volumes:
-      - ./ws:/ws:rw
-      - ./config/lio:/config:ro
-    command:
-      - bash
-      - -lc
-      - ${LIO_COMMAND:-exec sleep infinity}
+      - ./config/fast-lio:/config:ro
