@@ -122,6 +122,9 @@ only if `docker stats` shows FAST-LIO falling behind the 10 Hz scans.
 - **"No IMU sample in this scan, skip it".** The scan's time window holds no IMU sample: IMU dropped
   or late. A few at start-up are harmless. Steady warnings mean FAST-LIO is falling behind (check
   `docker stats`) or the IMU stream has gaps.
+- **"No Effective Points!", repeated.** No scan point found a plane in the map: FAST-LIO has lost the
+  map, usually after diverging (mullet1, 2026-10-20: started while the drone was handled, its position
+  ran to kilometres within a minute). Restart it with the drone still.
 - **Moving at start.** Gravity and the biases are wrong, and the estimate diverges in seconds.
   Restart the container with the drone still.
 - **Unsynced time.** Without PTP, the driver stamps every LiDAR and IMU packet with the Orin's
