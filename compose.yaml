@@ -45,6 +45,7 @@ services:
     depends_on:
       livox:
         condition: service_started
+        restart: true  # FAST-LIO restarts with the driver
     environment: *ros-environment
     volumes:
       - ./config/fast-lio:/config:ro
