@@ -25,8 +25,6 @@ services:
     build:
       context: .
       dockerfile: images/lio/Dockerfile
-      args:
-        BASE_IMAGE: ${BASE_IMAGE:-ghcr.io/skymule-ai/mullet-ros2-base:v0.5.0}
     image: ${LIO_IMAGE:-ghcr.io/skymule-ai/mullet-lio:local}
     network_mode: host
     ipc: host
