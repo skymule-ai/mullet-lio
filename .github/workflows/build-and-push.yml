@@ -27,11 +27,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read base image
-        id: versions
-        shell: bash
-        run: echo "base_image=$(sed -n 's/^BASE_IMAGE=//p' .env.example)" >> "$GITHUB_OUTPUT"
-
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -49,8 +44,6 @@ jobs:
           file: images/lio/Dockerfile
           platforms: linux/arm64
           push: ${{ github.event_name == 'push' }}
-          build-args: |
-            BASE_IMAGE=${{ steps.versions.outputs.base_image }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=lio
