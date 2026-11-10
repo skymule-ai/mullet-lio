@@ -1,8 +1,8 @@
 name: Build and Push LIO Images (ARM64)
 
+# Push only: a pull_request trigger built every PR commit a second time, without pushing.
+# The branch build already shows as the PR's check.
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: ["**"]
     tags: ["v*"]
@@ -54,13 +54,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # .env.example is the single place the base and Livox images are pinned.
-      - name: Read pinned images
-        id: pins
-        run: |
-          echo "base_image=$(sed -n 's/^BASE_IMAGE=//p' .env.example)" >> "$GITHUB_OUTPUT"
-          echo "livox_image=$(sed -n 's/^LIVOX_IMAGE=//p' .env.example)" >> "$GITHUB_OUTPUT"
-
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -79,8 +72,6 @@ jobs:
           platforms: linux/arm64
           load: true
           build-args: |
-            BASE_IMAGE=${{ steps.pins.outputs.base_image }}
-            LIVOX_IMAGE=${{ steps.pins.outputs.livox_image }}
             FAST_LIO_REPOSITORY=${{ inputs.fast_lio_repository || vars.FAST_LIO_REPOSITORY || 'https://github.com/hku-mars/FAST_LIO.git' }}
             FAST_LIO_REF=${{ inputs.fast_lio_ref || vars.FAST_LIO_REF || 'a4743b095409588842a5b30ddfa27e29d2f99164' }}
           tags: mullet-fast-lio-smoke:${{ github.sha }}
@@ -102,8 +93,6 @@ jobs:
           platforms: linux/arm64
           push: true
           build-args: |
-            BASE_IMAGE=${{ steps.pins.outputs.base_image }}
-            LIVOX_IMAGE=${{ steps.pins.outputs.livox_image }}
             FAST_LIO_REPOSITORY=${{ inputs.fast_lio_repository || vars.FAST_LIO_REPOSITORY || 'https://github.com/hku-mars/FAST_LIO.git' }}
             FAST_LIO_REF=${{ inputs.fast_lio_ref || vars.FAST_LIO_REF || 'a4743b095409588842a5b30ddfa27e29d2f99164' }}
           tags: ${{ steps.meta.outputs.tags }}

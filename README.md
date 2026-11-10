@@ -10,7 +10,7 @@ At build time, each LIO image inherits the shared ROS base and copies the Livox 
 driver image:
 
 ```text
-ghcr.io/skymule-ai/mullet-base:v0.5.1
+ghcr.io/skymule-ai/mullet-base:v0.6.0
 └── ghcr.io/skymule-ai/mullet-lio-fast-lio   (+ livox_ros_driver2 copied from mullet-drivers-livox)
 ```
 
@@ -55,8 +55,10 @@ The image builds upstream `hku-mars/FAST_LIO` (`ROS2` branch), pinned by build a
 ```dotenv
 FAST_LIO_REPOSITORY=https://github.com/hku-mars/FAST_LIO.git
 FAST_LIO_REF=a4743b095409588842a5b30ddfa27e29d2f99164
-LIVOX_IMAGE=ghcr.io/skymule-ai/mullet-drivers-livox:sha-8d0563c
 ```
+
+The base and the Livox message source are pinned in `images/fast-lio/Dockerfile` (`ARG BASE_IMAGE`,
+`ARG LIVOX_IMAGE`, now `mullet-drivers-livox:sha-8f9159f`, built on the same base).
 
 Four changes are applied to upstream at build time:
 
@@ -108,7 +110,7 @@ dependencies to `mullet-base`.
 
 CI builds for ARM64 and smoke-tests the image before publishing it. Branch pushes publish branch
 and SHA tags; release tags such as `v0.1.0` publish matching image tags. `BASE_IMAGE` and
-`LIVOX_IMAGE` are read from `.env.example`. **Actions → Build and Push LIO Images → Run workflow**
+`LIVOX_IMAGE` are the Dockerfile's pins. **Actions → Build and Push LIO Images → Run workflow**
 builds another FAST-LIO repository or revision.
 
 Do not create a release tag until a hardware test on the Orin shows `/livox/lidar` and
