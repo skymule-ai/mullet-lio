@@ -1,0 +1,45 @@
+diff --git a/src/laserMapping.cpp b/src/laserMapping.cpp
+index e5d9950..0518070 100644
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -631,18 +631,32 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
+     odomAftMapped.child_frame_id = "body";
+     odomAftMapped.header.stamp = get_ros_time(lidar_end_time);
+     set_posestamp(odomAftMapped.pose);
+-    pubOdomAftMapped->publish(odomAftMapped);
++    // mullet: standard odometry for px4_ev_bridge (REP 103, twist in the child frame). Upstream
++    // published before filling the covariance, swapped its position and rotation blocks, and left
++    // the twist at zero. P's order is pos (0-2), rot (3-5), ..., vel (12-14), the same as ROS's
++    // pose covariance (x, y, z, rot x, rot y, rot z).
+     auto P = kf.get_P();
+     for (int i = 0; i < 6; i ++)
++        for (int j = 0; j < 6; j ++)
++            odomAftMapped.pose.covariance[i*6 + j] = P(i, j);
++    const M3D R_T = state_point.rot.toRotationMatrix().transpose();
++    const V3D v = R_T * state_point.vel;
++    const M3D v_cov = R_T * P.block<3, 3>(12, 12) * R_T.transpose();
++    const auto &w_raw = Measures.imu.back()->angular_velocity;
++    const V3D w = V3D(w_raw.x, w_raw.y, w_raw.z) - state_point.bg;
++    odomAftMapped.twist.twist.linear.x = v(0);
++    odomAftMapped.twist.twist.linear.y = v(1);
++    odomAftMapped.twist.twist.linear.z = v(2);
++    odomAftMapped.twist.twist.angular.x = w(0);
++    odomAftMapped.twist.twist.angular.y = w(1);
++    odomAftMapped.twist.twist.angular.z = w(2);
++    for (int i = 0; i < 3; i ++)
+     {
+-        int k = i < 3 ? i + 3 : i - 3;
+-        odomAftMapped.pose.covariance[i*6 + 0] = P(k, 3);
+-        odomAftMapped.pose.covariance[i*6 + 1] = P(k, 4);
+-        odomAftMapped.pose.covariance[i*6 + 2] = P(k, 5);
+-        odomAftMapped.pose.covariance[i*6 + 3] = P(k, 0);
+-        odomAftMapped.pose.covariance[i*6 + 4] = P(k, 1);
+-        odomAftMapped.pose.covariance[i*6 + 5] = P(k, 2);
++        for (int j = 0; j < 3; j ++)
++            odomAftMapped.twist.covariance[i*6 + j] = v_cov(i, j);
++        odomAftMapped.twist.covariance[(i+3)*6 + i+3] = gyr_cov;
+     }
++    pubOdomAftMapped->publish(odomAftMapped);
+ 
+     geometry_msgs::msg::TransformStamped trans;
+     trans.header.frame_id = "camera_init";
